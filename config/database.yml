@@ -1,0 +1,33 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: 10
+  port: 5432
+
+development:
+  <<: *default
+  host: localhost 
+  username: commodity_rental_db_dev_admin
+  password: pa$$w0rd_dev_crdb
+  database: commodity_rental_db_dev
+
+staging:
+  <<: *default
+  host: <%= ENV['TEMPLATE_DATABASE_HOSTNAME'] %>
+  username: <%= ENV['TEMPLATEAPP_DATABASE_USER'] %>
+  password: <%= ENV['TEMPLATEAPP_DATABASE_PASSWORD'] %>
+  database: <%= ENV['TEMPLATEAPP_DATABASE'] %>
+
+production:
+  <<: *default
+  host: <%= ENV['TEMPLATE_DATABASE_HOSTNAME'] %>
+  username: <%= ENV['TEMPLATEAPP_DATABASE_USER'] %>
+  password: <%= ENV['TEMPLATEAPP_DATABASE_PASSWORD'] %>
+  database: <%= ENV['TEMPLATEAPP_DATABASE'] %>
+
+test:
+  <<: *default
+  host: localhost
+  username: postgres
+  password: password
+  database: billing_service_test
