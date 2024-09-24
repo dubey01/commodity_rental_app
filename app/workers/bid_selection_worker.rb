@@ -11,7 +11,10 @@ class BidSelectionWorker
     return unless listing.present?
 
     strategy_response = ListingStrategies::Manager.new.call(listing.strategy, params)
-    return unless strategy_response.present?
+    unless strategy_response[:renter_id].present?
+      listing.update!(active: false)
+      return
+    end
 
     renter_bid = RenterBid.where(renter_id: strategy_response[:renter_id]).last
 

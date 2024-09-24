@@ -1,4 +1,8 @@
 class CommoditiesController < ApplicationController
+  before_action :validate_lender, only: %i[list_commodity re_list lender_commodities]
+  before_action :validate_renter, only: %i[create_bid update_bid]
+  before_action :validate_lease, only: %i[re_list]
+
   def create
     new_commodity = Commodity.new(commodity_params)
     if new_commodity.save!
@@ -42,11 +46,16 @@ class CommoditiesController < ApplicationController
     render json: { status: 'error', payload: { error: e } }, status: :unprocessable_entity
   end
 
-  def listed_commodities
-  end
-
   # post commodity/bid
-  def create_bid
+  def create_bid 
+    unless bid_valid?
+      render json: { status: 'error', message: 'bid failed', payload: { error: 'bid price is less than the lender quote price' } }
+    end
+
+    unless listing_available?
+      render json: { status: 'error', message: 'bid failed', payload: { error: 'listing is already rented out or might not be available' } }
+    end
+
     new_bid = RenterBid.new(bid_params)
     if new_bid.save!
       render json: { status: 'success', message: 'bid created successfully', payload: { bid_id: new_bid.reload.id,
@@ -60,6 +69,14 @@ class CommoditiesController < ApplicationController
 
   # post commodity/re-bid
   def update_bid
+    unless bid_valid?
+      render json: { status: 'error', message: 'bid failed', payload: { error: 'bid price is less than the lender quote price' } }
+    end
+
+    unless listing_available?
+      render json: { status: 'error', message: 'bid failed', payload: { error: 'listing is already rented out or might not be available' } }
+    end
+
     bid = RenterBid.find(bid_params[:id])
     bid.update!(bid_params)
     render json: { status: 'success', message: 'bid revised successfully', payload: { bid_id: new_bid.reload.id,
@@ -104,7 +121,7 @@ class CommoditiesController < ApplicationController
 
   # get commodity/my-commodities
   def lender_commodities
-    resp = Commodity.lender_listed_commodities(lender_id) + Lease.lender_rented_commodities(lender_id)
+    resp = Commodity.lender_listed_commodities(current_user.id) + Lease.lender_rented_commodities(current_user.id)
 
     render json: { status: 'success', message: 'commodities fetched successfully', payload: resp }, status: :ok
   rescue StandardError => e
@@ -123,5 +140,35 @@ class CommoditiesController < ApplicationController
 
   def listing_params
     params.require(:listing).permit(:id, :price_per_month, :strategy)
+  end
+
+  def bid_valid?
+    listing = Listing.where(listing_id: bid_params[:listing_id]).last
+    bid_params[:bid_price] >= listing.price_per_month
+  end
+
+  def listing_available?
+    available = Listing.where(listing_id: bis_params[:listing_id], active: true).exists?
+    rented_out = Lease.where(listing_id: bid_params[:listing_id], active: true).exists?
+
+    available && !rented_out
+  end
+
+  def validate_lender
+    return if current_user.type == 'lender'
+
+    render json: { status: 'error', message: 'Not a lender' }, status: :unprocessable_entity
+  end
+
+  def validate_renter
+    return if current_user.type == 'renter'
+
+    render json: { status: 'error', message: 'Not a renter' }, status: :unprocessable_entity
+  end
+
+  def validate_lease
+    return unless Lease.where(listing_id: listing_params[:id], active: true).exists?
+
+    render json: { status: 'error', message: 'cannot update already rented out commodity' }, status: :unprocessable_entity
   end
 end

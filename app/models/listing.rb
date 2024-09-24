@@ -5,6 +5,10 @@ class Listing < ApplicationRecord
   belongs_to :lender, class_name: 'User', foreign_key: 'lender_id'
   belongs_to :commodity
 
+  # callbacks
+
+  after_commit :open_bid_window, on: :create
+
   def self.lender_listed_commodities(lender_id)
     commodities = []
     Listing.where(lender_id: lender_id).each do |listing|
@@ -16,5 +20,11 @@ class Listing < ApplicationRecord
     end
 
     commodities
+  end
+
+  private
+
+  def open_bid_window
+    ::BidSelectionWorker.perform_in(3.hours, { listing_id: id })
   end
 end
