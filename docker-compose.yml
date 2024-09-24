@@ -1,0 +1,30 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: commodity_rental_db_dev_admin
+      POSTGRES_PASSWORD: pa$$w0rd_dev_crdb
+      POSTGRES_DB: commodity_rental_db_dev
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails s -b '0.0.0.0'"
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://postgres:password@db:5432/commodity_rental_db_dev
+      RAILS_ENV: production
+      RACK_ENV: production
+
+volumes:
+  db_data:
